@@ -11,100 +11,135 @@ body {
   color: #333;
   display: flex;
   justify-content: center;
+
+  /* Soft, beauty-inspired background */
+  background: var(--white);
 }
 
 .page-wrapper {
   width: 90%;
   max-width: 900px;
+  margin: 24px 0 40px;
 }
 
 /* header */
 .site-header {
   text-align: center;
   padding-top: 50px;
+  /* keep background neutral */
+  background: #fff;
+  border-bottom: 2px solid var(--accent-red);
 }
 
+/* new: brand layout with logo */
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.brand-logo {
+  max-height: 48px;
+  width: auto;
+  display: inline-block;
+}
+
+/* L'Oréal brand colors: primary black and gold accent */
+:root {
+  --brand-black: #000000;
+  /* New palette */
+  --accent-red: #ff003b;
+  --white: #ffffff;
+  --black: #000000;
+}
+
+/* Title stays black for contrast */
 .site-title {
   font-size: 22px;
   font-weight: 500;
   margin-bottom: 10px;
+  color: var(--black);
+}
+
+/* Tagline under the title for a makeup theme */
+.site-tagline {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #6a6a6a;
 }
 
 /* chat window */
 .chatbox {
   margin: 40px 0;
-}
-
-.chat-window {
-  height: 360px;
-  border: 1px solid #000;
-  padding: 20px;
-  font-size: 18px;
-  line-height: 1.5;
-  overflow-y: auto;
-  background: #fafafa;
-  white-space: pre-line;
-}
-
-/* messages */
-.msg {
-  margin-bottom: 14px;
-  line-height: 1.5;
-}
-
-.msg.user {
-  color: #000;
-}
-
-.msg.ai {
-  color: #666666;
-}
-
-/* input row */
-.chat-form {
   display: flex;
-  gap: 12px;
-  margin-top: 16px;
+  flex-direction: column;
+  gap: 14px; /* consistent spacing between window and input row */
 }
 
-.chat-form input {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #ccc;
+/* update button to use brand accent */
+.chat-form {
   font-size: 18px;
-}
-
-.chat-form input:focus {
-  outline: 2px solid #000;
-  outline-offset: 2px;
+  display: grid;
+  grid-template-columns: 1fr 48px; /* input grows, button stays 48px */
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 14px;
+  padding: 10px 10px 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
 .chat-form button {
   font-size: 18px;
-  background: #000;
+  background: var(--accent-red);
   color: #fff;
   border: none;
-  padding: 12px;
+  padding: 0;
+  margin: 0;
   width: 48px;
   height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.3s;
+  border-radius: 10px;
+  box-shadow: 0 6px 12px rgba(255, 0, 59, 0.25);
 }
 
 .chat-form button .material-icons {
   font-size: 24px;
+  line-height: 1;
+  display: block;
 }
 
 .chat-form button:hover {
-  background: #666666;
+  background: #d60032; /* tasteful darker red */
 }
 
 .chat-form button:focus {
   outline: 2px solid #000;
   outline-offset: 2px;
+}
+
+/* Input fills its grid area and matches button height */
+.chat-form input {
+  height: 48px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-size: 16px;
+  margin: 0;
+  padding: 0 10px;
+}
+
+/* Focus ring harmonizes with brand accent */
+.chat-form input:focus {
+  outline: none;
+  border-color: var(--accent-red);
+  box-shadow: 0 0 0 3px rgba(255, 0, 59, 0.2);
 }
 
 /* visually hidden */
@@ -134,10 +169,222 @@ body {
 
 .site-footer a {
   margin: 0 8px;
-  color: #000;
+  color: var(--accent-red);
   text-decoration: none;
 }
 
 .site-footer a:hover {
-  color: #666666;
+  color: var(--black);
+}
+
+/* chat window */
+.chat-window {
+  height: 360px;
+  border-radius: 14px;
+  border: 1px solid #e5e5e5;
+  padding: 20px;
+  font-size: 18px;
+  line-height: 1.5;
+  overflow-y: auto;
+  background: #fcfcfc;
+  white-space: pre-line;
+
+  /* New: use flex column so messages stack as bubbles */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+
+  /* smooth scrolling when new messages are added */
+  scroll-behavior: smooth;
+}
+
+/* Message bubble base */
+.user-message,
+.assistant-message {
+  max-width: 75%;
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.4;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  word-wrap: break-word;
+
+  /* animate transforms and opacity for smooth transitions */
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease;
+  will-change: transform, opacity;
+}
+
+/* Entry animation helper classes */
+/* initial state before animation */
+.message-enter {
+  opacity: 0;
+  transform: translateY(10px) scale(0.995);
+}
+
+/* active state - applied next frame to animate into place */
+.message-enter.message-enter-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* User bubble (aligned right) */
+.user-message {
+  align-self: flex-end;
+  background: var(--accent-red);
+  color: var(--white);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px 16px 8px 16px;
+  text-align: right;
+  box-shadow: 0 6px 16px rgba(255, 0, 59, 0.25);
+}
+
+/* Assistant bubble (aligned left) */
+.assistant-message {
+  align-self: flex-start;
+  background: #ffffff;
+  color: #222;
+  border: 1px solid #e6e6e6;
+  border-radius: 16px 16px 16px 8px;
+  text-align: left;
+}
+
+/* Slightly smaller label and spacing for the who: prefix */
+.user-message strong,
+.assistant-message strong {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+  opacity: 0.9;
+}
+
+/* Loading/thinking indicator */
+.assistant-message.loading {
+  background: linear-gradient(90deg, #fff 0%, #fbfbfb 50%, #fff 100%);
+  border-style: dashed;
+  color: #666;
+}
+
+/* animated dots for the loading text */
+.assistant-message.loading .dots {
+  display: inline-block;
+  width: 48px;
+  text-align: left;
+  animation: dots 1.2s steps(4, end) infinite;
+  margin-left: 6px;
+  color: #444;
+}
+
+/* subtle hover / focus feedback for bubbles */
+.user-message:hover,
+.assistant-message:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+/* keyframes for the loading dots */
+@keyframes dots {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75% {
+    content: "...";
+  }
+  100% {
+    content: "";
+  }
+}
+
+/* Fallback visible dot animation for browsers without generated content animation */
+@keyframes dots-letters {
+  0% {
+    opacity: 0.2;
+  }
+  20% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+/* better-looking dot animation using spans if needed */
+.assistant-message.loading .dots span {
+  opacity: 0.2;
+  animation: dots-letters 1.2s infinite;
+}
+.assistant-message.loading .dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+.assistant-message.loading .dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.assistant-message.loading .dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* Tweak scrollbar for a nicer look */
+.chat-window::-webkit-scrollbar {
+  width: 8px;
+}
+.chat-window::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+}
+.chat-window::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Improve list layout inside message bubbles so markers don't overflow */
+.assistant-message ul,
+.assistant-message ol,
+.user-message ul,
+.user-message ol {
+  margin: 8px 0;
+  padding-left: 20px; /* ensure markers are inside the bubble */
+  list-style-position: outside;
+}
+
+/* Tighter control for ordered list markers to avoid visual overflow */
+.assistant-message ol {
+  padding-left: 22px;
+  list-style: decimal; /* force proper 1,2,3… numbering */
+}
+.user-message ol {
+  list-style: decimal; /* keep numbering consistent if user content includes <ol> */
+}
+
+/* Ensure list items wrap nicely and do not push markers outside */
+.assistant-message li,
+.user-message li {
+  margin-bottom: 6px;
+  line-height: 1.45;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+/* Slightly adjust marker color for contrast inside assistant bubbles */
+.assistant-message ul li::marker,
+.assistant-message ol li::marker {
+  color: #666;
+}
+
+/* Subtle makeup-themed tweaks inside assistant content */
+.assistant-message h3 {
+  border-left: 3px solid var(--accent-red);
+}
+
+.assistant-message p em {
+  font-style: italic;
+  color: #555;
 }
