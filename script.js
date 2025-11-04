@@ -300,10 +300,76 @@ function appendLoading() {
   return id;
 }
 
+/* Helper: extract plain text from various OpenAI/Worker response shapes */
+function extractAssistantText(data) {
+  // 1) Direct string response
+  if (typeof data === "string") return data;
+
+  // 2) Chat Completions: choices[0].message.content (string or array)
+  const msgContent = data?.choices?.[0]?.message?.content;
+  if (typeof msgContent === "string") return msgContent;
+  if (Array.isArray(msgContent)) {
+    // Items may be strings or objects like {type:'text', text:'...'}
+    const parts = msgContent
+      .map((p) =>
+        typeof p === "string"
+          ? p
+          : typeof p?.text === "string"
+          ? p.text
+          : typeof p?.content === "string"
+          ? p.content
+          : ""
+      )
+      .filter(Boolean);
+    if (parts.length) return parts.join("\n");
+  }
+
+  // 3) Responses API convenience field
+  const outputText = data?.output_text;
+  if (typeof outputText === "string") return outputText;
+  if (Array.isArray(outputText)) {
+    const parts = outputText.filter((t) => typeof t === "string");
+    if (parts.length) return parts.join("\n");
+  }
+
+  // 4) Responses API: output array with message/content parts
+  // Typical shape: output: [{ type:'message', role:'assistant', content:[{type:'output_text', text:'...'}] }]
+  const output = data?.output;
+  if (Array.isArray(output)) {
+    const texts = [];
+    output.forEach((o) => {
+      const contentArr = o?.content;
+      if (Array.isArray(contentArr)) {
+        contentArr.forEach((c) => {
+          if (typeof c?.text === "string") texts.push(c.text);
+          else if (typeof c === "string") texts.push(c);
+        });
+      }
+    });
+    if (texts.length) return texts.join("\n");
+  }
+
+  // 5) Other fallbacks we already attempted previously
+  if (typeof data?.choices?.[0]?.text === "string") return data.choices[0].text;
+  if (typeof data?.text === "string") return data.text;
+  if (typeof data?.assistant === "string") return data.assistant;
+  if (typeof data?.answer === "string") return data.answer;
+  if (
+    Array.isArray(data?.result) &&
+    typeof data.result[0]?.output_text === "string"
+  ) {
+    return data.result[0].output_text;
+  }
+
+  // Nothing usable found
+  return null;
+}
+
 /* Send message to Cloudflare Worker and return assistant reply
    Auto-continue if the model stops due to token limit (finish_reason === "length"). */
 async function sendToWorker(messages) {
   // Cloudflare Worker URL (deployed endpoint)
+  // Note: Your Worker contains the OpenAI API key and Prompt ID.
   const workerUrl = "https://lorealchatbot.cuadra33.workers.dev/";
 
   // Helper to make one API call
@@ -327,19 +393,12 @@ async function sendToWorker(messages) {
     const data = await res.json();
     console.debug("Worker response:", data);
 
-    // Extract assistant text and finish reason
-    const content =
-      data?.choices?.[0]?.message?.content ||
-      data?.choices?.[0]?.text ||
-      data?.text ||
-      data?.assistant ||
-      data?.answer ||
-      (Array.isArray(data?.result) && data.result[0]?.output_text) ||
-      (typeof data === "string" ? data : null);
+    // Normalize to a plain string to prevent "[object Object]"
+    let content = extractAssistantText(data);
 
     const finishReason = data?.choices?.[0]?.finish_reason || null;
 
-    if (!content) {
+    if (!content || typeof content !== "string") {
       throw new Error(
         `No assistant response found. Worker returned: ${JSON.stringify(data)}`
       );
