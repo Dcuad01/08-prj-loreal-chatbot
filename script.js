@@ -352,7 +352,10 @@ function extractAssistantText(data) {
   if (typeof data?.text === "string") return data.text;
   if (typeof data?.assistant === "string") return data.assistant;
   if (typeof data?.answer === "string") return data.answer;
-  if (Array.isArray(data?.result) && typeof data.result[0]?.output_text === "string") {
+  if (
+    Array.isArray(data?.result) &&
+    typeof data.result[0]?.output_text === "string"
+  ) {
     return data.result[0].output_text;
   }
 
