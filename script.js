@@ -302,14 +302,13 @@ function appendLoading() {
 
 /* Helper: extract plain text from various OpenAI/Worker response shapes */
 function extractAssistantText(data) {
-  // 1) Direct string response
+  // 1) Direct string
   if (typeof data === "string") return data;
 
-  // 2) Chat Completions: choices[0].message.content (string or array)
+  // 2) Chat Completions: choices[0].message.content (string or array/parts)
   const msgContent = data?.choices?.[0]?.message?.content;
   if (typeof msgContent === "string") return msgContent;
   if (Array.isArray(msgContent)) {
-    // Items may be strings or objects like {type:'text', text:'...'}
     const parts = msgContent
       .map((p) =>
         typeof p === "string"
@@ -324,7 +323,7 @@ function extractAssistantText(data) {
     if (parts.length) return parts.join("\n");
   }
 
-  // 3) Responses API convenience field
+  // 3) Responses API convenience field(s)
   const outputText = data?.output_text;
   if (typeof outputText === "string") return outputText;
   if (Array.isArray(outputText)) {
@@ -332,8 +331,7 @@ function extractAssistantText(data) {
     if (parts.length) return parts.join("\n");
   }
 
-  // 4) Responses API: output array with message/content parts
-  // Typical shape: output: [{ type:'message', role:'assistant', content:[{type:'output_text', text:'...'}] }]
+  // 4) Responses API: output array with content parts
   const output = data?.output;
   if (Array.isArray(output)) {
     const texts = [];
@@ -349,19 +347,15 @@ function extractAssistantText(data) {
     if (texts.length) return texts.join("\n");
   }
 
-  // 5) Other fallbacks we already attempted previously
+  // 5) Other common fallbacks
   if (typeof data?.choices?.[0]?.text === "string") return data.choices[0].text;
   if (typeof data?.text === "string") return data.text;
   if (typeof data?.assistant === "string") return data.assistant;
   if (typeof data?.answer === "string") return data.answer;
-  if (
-    Array.isArray(data?.result) &&
-    typeof data.result[0]?.output_text === "string"
-  ) {
+  if (Array.isArray(data?.result) && typeof data.result[0]?.output_text === "string") {
     return data.result[0].output_text;
   }
 
-  // Nothing usable found
   return null;
 }
 
@@ -395,7 +389,6 @@ async function sendToWorker(messages) {
 
     // Normalize to a plain string to prevent "[object Object]"
     let content = extractAssistantText(data);
-
     const finishReason = data?.choices?.[0]?.finish_reason || null;
 
     if (!content || typeof content !== "string") {
