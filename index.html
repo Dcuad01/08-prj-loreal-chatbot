@@ -39,7 +39,7 @@
             <!-- messages will be appended here via JS -->
           </div>
 
-          <form id="chatForm" class="chat-form">
+          <form id="chatForm" class="chat-form" novalidate>
             <label for="userInput" class="visually-hidden">Message</label>
             <input
               id="userInput"
@@ -69,8 +69,8 @@
       </footer>
     </div>
 
-    <!-- secrets.js can be removed when using Cloudflare Workers for API requests -->
-    <script src="secrets.js"></script>
-    <script src="script.js"></script>
+    <!-- Footer / scripts -->
+    <!-- Remove secrets.js; no keys in the browser -->
+    <script src="script.js" defer></script>
   </body>
 </html>

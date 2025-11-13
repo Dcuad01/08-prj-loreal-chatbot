@@ -199,6 +199,63 @@ body {
   scroll-behavior: smooth;
 }
 
+/* Shared chat bubble base */
+.chat-bubble {
+  max-width: 75%;
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.4;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  word-wrap: break-word;
+
+  /* animate transforms and opacity for smooth transitions */
+  transition: opacity 320ms ease, transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 340ms ease;
+}
+
+/* Initial hidden state for chat bubble animation */
+.bubble-enter {
+  opacity: 0;
+  transform: translateY(14px) scale(0.98);
+}
+
+/* Active state for chat bubble animation */
+.bubble-enter-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.08);
+}
+
+/* User bubble */
+.chat-bubble.user {
+  align-self: flex-end;
+  background: var(--accent-red, #ff003b);
+  color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px 16px 8px 16px;
+  text-align: left;
+  box-shadow: 0 6px 16px rgba(255, 0, 59, 0.25);
+}
+
+/* Assistant bubble */
+.chat-bubble.assistant {
+  align-self: flex-start;
+  background: #ffffff;
+  color: #222;
+  border: 1px solid #e6e6e6;
+  border-radius: 16px 16px 16px 8px;
+  text-align: left;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Loading state (reuse assistant look, dashed border) */
+.chat-bubble.assistant.loading {
+  background: linear-gradient(90deg, #fff 0%, #fbfbfb 50%, #fff 100%);
+  border-style: dashed;
+  color: #666;
+}
+
 /* Message bubble base */
 .user-message,
 .assistant-message {
@@ -387,4 +444,34 @@ body {
 .assistant-message p em {
   font-style: italic;
   color: #555;
+}
+
+.chat-bubble ul,
+.chat-bubble ol {
+  margin: 6px 0 6px 18px;
+  padding: 0;
+}
+
+.chat-bubble li {
+  margin: 4px 0;
+}
+
+.chat-bubble strong {
+  font-weight: 700;
+}
+
+.chat-bubble p {
+  margin: 6px 0;
+}
+
+/* Reduce motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .chat-bubble,
+  .bubble-enter,
+  .bubble-enter-active {
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
 }

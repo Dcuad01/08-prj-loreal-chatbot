@@ -2,23 +2,66 @@
 const chatForm = document.getElementById("chatForm");
 const userInput = document.getElementById("userInput");
 const chatWindow = document.getElementById("chatWindow");
+const sendBtn = document.getElementById("sendBtn");
 
-// Set initial message as an assistant bubble (use formatted HTML)
-appendMessage(
-  "assistant",
-  formatAssistantHTML("👋 Hello! How can I help you today?"),
-  true
-);
+/* New: Cloudflare Worker endpoint (all frontend calls go here) */
+const WORKER_URL = "https://loreralchatbot2.cuadra33.workers.dev/";
+/* New: system instruction included on every request */
+const SYSTEM_TEXT = "You are a helpful assistant.";
 
-/* Helper: escape HTML to prevent XSS for user content */
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+/* Markdown escape + formatter (simple) */
+function escapeHtml(s) {
+  return String(s || "").replace(
+    /[&<>"']/g,
+    (m) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
+        m
+      ])
+  );
 }
+function mdToHtml(md) {
+  let h = escapeHtml(md || "");
+  // bold then italics
+  h = h.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  // ordered list lines (merge adjacent)
+  h = h.replace(/^\s*\d+\.\s+(.+)$/gm, "<ol><li>$1</li></ol>");
+  h = h.replace(/<\/ol>\s*<ol>/g, "");
+  // unordered list lines (- or •) (merge adjacent)
+  h = h.replace(/^\s*[-•]\s+(.+)$/gm, "<ul><li>$1</li></ul>");
+  h = h.replace(/<\/ul>\s*<ul>/g, "");
+  // paragraphs / line breaks
+  h = h.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
+  return `<p>${h}</p>`;
+}
+
+/* Simple chat bubble adder (assistant gets HTML, user plain text) */
+function addChat(role, text) {
+  const div = document.createElement("div");
+  div.className = `chat-bubble ${
+    role === "user" ? "user" : "assistant"
+  } bubble-enter`;
+  if (role === "assistant") {
+    div.innerHTML = mdToHtml(text);
+  } else {
+    div.innerText = text;
+  }
+  chatWindow.appendChild(div);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+  requestAnimationFrame(() => {
+    div.classList.add("bubble-enter-active");
+  });
+  div.addEventListener(
+    "transitionend",
+    () => {
+      div.classList.remove("bubble-enter", "bubble-enter-active");
+    },
+    { once: true }
+  );
+}
+
+/* Initial greeting (assistant) */
+addChat("assistant", "👋 Hello! How can I help you today?");
 
 /* Helper: append a message to the chat window */
 // type is 'user' or 'assistant'
@@ -284,184 +327,81 @@ function formatAssistantHTML(text) {
   return html.trim() || `<p>${escapeHtml(text)}</p>`;
 }
 
-/* Helper: append a loading assistant message (returns id)
-   Restores the loading bubble used during API requests so submit() doesn't throw. */
+/* New: single caller that posts only { messages:[...] } and returns { text } */
+async function callWorker(body) {
+  const r = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const raw = await r.text();
+  let data = {};
+  try {
+    data = JSON.parse(raw);
+  } catch {}
+  if (!r.ok) return data?.text || data?.error || `Worker error ${r.status}`;
+  const t = typeof data?.text === "string" ? data.text.trim() : "";
+  return t || "I couldn’t generate that. Please try again.";
+}
+
+/* Updated loading bubble to use same animation */
 function appendLoading() {
   const id = `loading-${Date.now()}`;
   const wrapper = document.createElement("div");
   wrapper.id = id;
-  wrapper.className = "assistant-message loading message-enter";
-  // Animated dots (CSS already handles the animation via .dots span)
-  wrapper.innerHTML = `<strong>Assistant:</strong> <span class="dots"><span>.</span><span>.</span><span>.</span></span>`;
+  wrapper.className = "chat-bubble assistant loading bubble-enter";
+  wrapper.innerHTML = `<span class="dots"><span>.</span><span>.</span><span>.</span></span>`;
   chatWindow.appendChild(wrapper);
   chatWindow.scrollTop = chatWindow.scrollHeight;
-  // trigger entry animation
-  requestAnimationFrame(() => wrapper.classList.add("message-enter-active"));
+  requestAnimationFrame(() => {
+    wrapper.classList.add("bubble-enter-active");
+  });
+  wrapper.addEventListener(
+    "transitionend",
+    () => {
+      wrapper.classList.remove("bubble-enter", "bubble-enter-active");
+    },
+    { once: true }
+  );
   return id;
 }
 
-/* Helper: extract plain text from various OpenAI/Worker response shapes */
-function extractAssistantText(data) {
-  // 1) Direct string
-  if (typeof data === "string") return data;
+/* Handle form submit: prevent reload, build one payload, call the Worker, render data.text */
+chatForm.addEventListener(
+  "submit",
+  async (e) => {
+    e.preventDefault();
+    const text = userInput.value.trim();
+    if (!text) return;
 
-  // 2) Chat Completions: choices[0].message.content (string or array/parts)
-  const msgContent = data?.choices?.[0]?.message?.content;
-  if (typeof msgContent === "string") return msgContent;
-  if (Array.isArray(msgContent)) {
-    const parts = msgContent
-      .map((p) =>
-        typeof p === "string"
-          ? p
-          : typeof p?.text === "string"
-          ? p.text
-          : typeof p?.content === "string"
-          ? p.content
-          : ""
-      )
-      .filter(Boolean);
-    if (parts.length) return parts.join("\n");
-  }
+    addChat("user", text);
+    userInput.value = "";
 
-  // 3) Responses API convenience field(s)
-  const outputText = data?.output_text;
-  if (typeof outputText === "string") return outputText;
-  if (Array.isArray(outputText)) {
-    const parts = outputText.filter((t) => typeof t === "string");
-    if (parts.length) return parts.join("\n");
-  }
+    const loadingId = appendLoading();
+    if (sendBtn) sendBtn.disabled = true;
 
-  // 4) Responses API: output array with content parts
-  const output = data?.output;
-  if (Array.isArray(output)) {
-    const texts = [];
-    output.forEach((o) => {
-      const contentArr = o?.content;
-      if (Array.isArray(contentArr)) {
-        contentArr.forEach((c) => {
-          if (typeof c?.text === "string") texts.push(c.text);
-          else if (typeof c === "string") texts.push(c);
-        });
-      }
-    });
-    if (texts.length) return texts.join("\n");
-  }
+    const payload = {
+      messages: [
+        { role: "system", content: SYSTEM_TEXT },
+        { role: "user", content: text },
+      ],
+    };
 
-  // 5) Other common fallbacks
-  if (typeof data?.choices?.[0]?.text === "string") return data.choices[0].text;
-  if (typeof data?.text === "string") return data.text;
-  if (typeof data?.assistant === "string") return data.assistant;
-  if (typeof data?.answer === "string") return data.answer;
-  if (
-    Array.isArray(data?.result) &&
-    typeof data.result[0]?.output_text === "string"
-  ) {
-    return data.result[0].output_text;
-  }
+    try {
+      const replyText = await callWorker(payload);
 
-  return null;
-}
-
-/* Send message to Cloudflare Worker and return assistant reply
-   Auto-continue if the model stops due to token limit (finish_reason === "length"). */
-async function sendToWorker(messages) {
-  // Cloudflare Worker URL (deployed endpoint)
-  // Note: Your Worker contains the OpenAI API key and Prompt ID.
-  const workerUrl = "https://lorealchatbot.cuadra33.workers.dev/";
-
-  // Helper to make one API call
-  async function callWorker(msgs) {
-    const res = await fetch(workerUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: msgs,
-        // give the worker a generous budget; worker may override
-        max_tokens: 800,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Worker error: ${res.status} ${text}`);
+      // Remove loading bubble and create a fresh assistant bubble (so entry animation applies)
+      const loadingEl = document.getElementById(loadingId);
+      if (loadingEl) loadingEl.remove();
+      addChat("assistant", replyText);
+    } catch (err) {
+      const loadingEl = document.getElementById(loadingId);
+      if (loadingEl) loadingEl.remove();
+      addChat("assistant", `Error: ${err.message || err}`);
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+      userInput.focus();
     }
-
-    const data = await res.json();
-    console.debug("Worker response:", data);
-
-    // Normalize to a plain string to prevent "[object Object]"
-    let content = extractAssistantText(data);
-    const finishReason = data?.choices?.[0]?.finish_reason || null;
-
-    if (!content || typeof content !== "string") {
-      throw new Error(
-        `No assistant response found. Worker returned: ${JSON.stringify(data)}`
-      );
-    }
-
-    return { content, finishReason };
-  }
-
-  try {
-    let attempts = 0;
-    const maxAttempts = 3; // first reply + up to 2 continuations
-    let msgs = messages.slice();
-    let combined = "";
-
-    while (attempts < maxAttempts) {
-      const { content, finishReason } = await callWorker(msgs);
-
-      combined += (combined ? "\n\n" : "") + content;
-
-      // Stop if not truncated
-      if (finishReason !== "length") break;
-
-      // Otherwise, ask for continuation: include the assistant's partial and a simple "Continue."
-      msgs = msgs.concat(
-        { role: "assistant", content: content },
-        { role: "user", content: "Continue." }
-      );
-      attempts++;
-    }
-
-    // Sanitize and format once at the end
-    const assistantText = sanitizeAssistantText(combined);
-    const assistantHtml = formatAssistantHTML(assistantText);
-    return assistantHtml;
-  } catch (err) {
-    throw err;
-  }
-}
-
-/* Handle form submit */
-chatForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const text = userInput.value.trim();
-  if (!text) return;
-
-  appendMessage("user", text);
-  userInput.value = "";
-
-  const loadingId = appendLoading();
-
-  const messages = [
-    { role: "system", content: "You are a helpful assistant." },
-    { role: "user", content: text },
-  ];
-
-  try {
-    const replyHtml = await sendToWorker(messages);
-
-    const loadingEl = document.getElementById(loadingId);
-    if (loadingEl) loadingEl.remove();
-
-    // assistant reply is HTML (safe), so pass isHtml = true
-    appendMessage("assistant", replyHtml, true);
-  } catch (err) {
-    const loadingEl = document.getElementById(loadingId);
-    if (loadingEl) loadingEl.remove();
-    appendMessage("assistant", `Error: ${escapeHtml(err.message)}`);
-    console.error("Error sending to worker:", err);
-  }
-});
+  },
+  { passive: false }
+);

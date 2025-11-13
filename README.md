@@ -11,4 +11,10 @@ L’Oréal is exploring the power of AI, and your job is to showcase what's poss
 
 When deploying through Cloudflare, make sure your API request body (in `script.js`) includes a `messages` array and handle the response by extracting `data.choices[0].message.content`.
 
+## 🌐 Worker Note
+
+Frontend posts to https://loreralchatbot2.cuadra33.workers.dev/ and renders { text }.
+No OpenAI keys in the browser; all calls go through the Worker.
+Use the chat form (Enter/Send). The page does not reload; one assistant reply appears per send.
+
 Enjoy building your L’Oréal beauty assistant! 💄
